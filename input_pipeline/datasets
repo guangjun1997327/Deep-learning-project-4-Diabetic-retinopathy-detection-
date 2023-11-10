@@ -1,0 +1,131 @@
+import gin
+import logging
+import tensorflow as tf
+import tensorflow_datasets as tfds
+import pandas as pd
+import numpy as np
+import os
+
+from input_pipeline.preprocessing import preprocess, augment
+
+@gin.configurable
+def load(name, trainimpath,testimpath,trainlabelpath,testlabelpath,train_per):
+    if name == "idrid":
+        logging.info(f"Preparing dataset {name}...")
+
+        def get_data(filepath, labelpath):
+            imgset = []
+            data = pd.read_csv(labelpath)
+            len = data["Image name"].shape[0]
+            # label
+            labelset = np.asarray(data["Retinopathy grade"])
+            labelset[labelset < 2] = 0
+            labelset[labelset >= 2] = 1
+            # image
+            for i in range(0, len):
+                name = data["Image name"][i]
+                impath = os.path.join(filepath, name + '.jpg')
+                img = tf.io.read_file(impath)
+                img = tf.image.decode_jpeg(img, channels=3)
+                imgset.append(img)
+            dataset = tf.data.Dataset.from_tensor_slices((imgset, labelset))
+            return dataset
+
+        def datasplit(dataset, buffer, seed, train_per):
+            dataset1 = dataset.shuffle(buffer, seed=seed, reshuffle_each_iteration=False)
+            num = sum(1 for _ in dataset1)
+            train_dataset = dataset1.take(round(num * train_per))
+            val_dataset = dataset1.skip(round(num * train_per)).take(round(num * (1 - train_per)))
+            return train_dataset, val_dataset
+
+        def datadis(dataset):
+            i0 = 0
+            i1 = 0
+            for img, label in dataset:
+                if label == 0:
+                    i0 += 1
+                else:
+                    i1 += 1
+            num = sum(1 for _ in dataset)
+            dis = [i0, i1, num]
+            return dis
+
+        fulldataset = get_data(trainimpath, trainlabelpath)
+        testdataset = get_data(testimpath, testlabelpath)
+        traindataset, valdataset = datasplit(fulldataset, 500, 2, train_per)
+        traindis = datadis(traindataset)
+        testdis = datadis(testdataset)
+        valdis = datadis(valdataset)
+        data_info = {'num_0': {'train': traindis[0], 'test': testdis[0], 'val': valdis[0]},
+                     'num_1': {'train': traindis[1], 'test': testdis[1], 'val': valdis[1]},
+                     'len': {'train': traindis[2], 'test': testdis[2], 'val': valdis[2]}}
+
+        return prepare(traindataset,testdataset,valdataset,data_info)
+
+    elif name == "eyepacs":
+        logging.info(f"Preparing dataset {name}...")
+        (ds_train, ds_val, ds_test), ds_info = tfds.load(
+            'diabetic_retinopathy_detection/btgraham-300',
+            split=['train', 'validation', 'test'],
+            shuffle_files=True,
+            with_info=True,
+            data_dir=data_dir
+        )
+
+        def _preprocess(img_label_dict):
+            return img_label_dict['image'], img_label_dict['label']
+
+        ds_train = ds_train.map(_preprocess, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        ds_val = ds_val.map(_preprocess, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+        ds_test = ds_test.map(_preprocess, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+
+        return prepare(ds_train, ds_val, ds_test, ds_info)
+
+    elif name == "mnist":
+        logging.info(f"Preparing dataset {name}...")
+        (ds_train, ds_val, ds_test), ds_info = tfds.load(
+            'mnist',
+            split=['train[:90%]', 'train[90%:]', 'test'],
+            shuffle_files=True,
+            as_supervised=True,
+            with_info=True,
+            data_dir=data_dir
+        )
+
+        return prepare(ds_train, ds_val, ds_test, ds_info)
+
+    else:
+        raise ValueError
+
+@gin.configurable
+def prepare(ds_train, ds_val, ds_test, ds_info, batch_size, caching):
+    # Prepare training dataset
+    ds_train = ds_train.map(
+        preprocess, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    if caching:
+        ds_train = ds_train.cache()
+    ds_train = ds_train.map(
+        augment, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    ds_train = ds_train.shuffle(ds_info.get('len').get('train'))
+    ds_train = ds_train.batch(batch_size)
+    ds_train = ds_train.repeat(-1)
+    ds_train = ds_train.prefetch(tf.data.experimental.AUTOTUNE)
+
+    # Prepare validation dataset
+    ds_val = ds_val.map(
+        preprocess, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    if caching:
+        ds_val = ds_val.cache()
+    ds_val = ds_val.batch(1)
+    ds_val = ds_val.prefetch(tf.data.experimental.AUTOTUNE)
+
+    # Prepare test dataset
+    ds_test = ds_test.map(
+        preprocess, num_parallel_calls=tf.data.experimental.AUTOTUNE)
+    ds_test = ds_test.batch(batch_size)
+    if caching:
+        ds_test = ds_test.cache()
+    ds_test = ds_test.batch(1)
+    ds_test = ds_test.prefetch(tf.data.experimental.AUTOTUNE)
+
+    return ds_train, ds_val, ds_test, ds_info
