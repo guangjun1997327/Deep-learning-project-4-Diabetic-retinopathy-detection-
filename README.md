@@ -73,3 +73,23 @@ Convert the IDRID dataset into TFRecords for efficient input pipeline processing
   Test:
 
     `python3 main.py --mode evaluate --model_name transfer --num_classes 5`
+
+  ## Results and Visualizations
+
+Our deep learning models provide insightful visualizations that help in understanding the decision-making process. Below are some of the results using techniques like Gradient-weighted Class Activation Mapping (Grad-CAM) and Guided Backpropagation.
+
+
+### Class-Discriminative Visualizations
+- **Grad-CAM**: Highlights the regions in the image that are important for the model's decision.
+  
+
+- **Guided Grad-CAM**: Combines Grad-CAM with Guided Backpropagation to provide high-resolution class-discriminative visualizations.
+
+
+### High-Resolution Visualizations
+- **Guided Backpropagation**: Visualizes the gradients flowing into the final convolutional layer of the model to understand which features activate the neurons the most.
+
+
+The visualization techniques applied here serve to make the model's predictions interpretable to humans, by mapping the areas of interest that lead to a particular output. These insights can be invaluable for further research and improvements in the field of medical image analysis.
+
+If you want to get a overview of results for this project please visit my Googld Drive: https://docs.google.com/presentation/d/17PHRd5ZhU06U6DkaT6uEixp0sByi4pTk/edit?usp=drive_link&ouid=102690024146339890642&rtpof=true&sd=true
