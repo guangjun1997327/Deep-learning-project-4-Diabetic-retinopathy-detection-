@@ -1,6 +1,18 @@
-# Deep-learning-project-4-Diabetic-retinopathy-detection-
-Diabetic retinopathy is an eye disease, in which damage occurs to the retina due to diabetes. The longer a person has diabetes and the less controlled the blood sugar, the higher the chances of developing diabetic retinopathy. here. we provide the automatic methods for diabetic retinopathy detection.
-TFRecords: 
+# Deep Learning Project for Diabetic Retinopathy Detection
+
+Diabetic retinopathy is a serious eye condition associated with diabetes, leading to damage in the retina. This project aims to provide automatic methods for the detection of diabetic retinopathy using deep learning techniques.
+
+## Project Overview
+This repository contains code for training and evaluating deep learning models to classify and detect diabetic retinopathy from retinal images. We use the IDRID (Indian Diabetic Retinopathy Image Dataset) and implement various models like VGG, ResNet, and a transfer learning approach for this purpose.
+
+## Getting Started
+### Prerequisites
+- Python 3
+- TensorFlow
+- Other necessary libraries and dependencies (listed in `requirements.txt`)
+
+### Preparing the Dataset
+Convert the IDRID dataset into TFRecords for efficient input pipeline processing:
 
 - under the folder `./input_pipeline/`, run the following command to convert IDRID dataset into TFRecords
 `python3 create_smaller_tfrecord.py`. 
@@ -61,4 +73,3 @@ TFRecords:
   Test:
 
     `python3 main.py --mode evaluate --model_name transfer --num_classes 5`
-
